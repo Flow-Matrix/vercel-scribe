@@ -1,0 +1,10 @@
+{
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "/api/:path*" }
+  ],
+  "functions": {
+    "api/token.js": {
+      "runtime": "edge"
+    }
+  }
+}
