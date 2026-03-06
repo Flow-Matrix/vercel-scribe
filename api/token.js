@@ -1,44 +1,13 @@
-// Vercel Edge Function to get WebSocket token
-// This is the ONLY server-side code needed
+// api/token.js — DEPRECATED
+// This Vercel Edge Function is no longer needed.
+// The Gemini API is called directly from the browser using the user-provided API key.
+// ElevenLabs WebSocket token proxying has been removed.
 
-export const config = {
-  runtime: 'edge',
-};
+export const config = { runtime: 'edge' };
 
 export default async function handler(request) {
-  // Get API key from request header
-  const apiKey = request.headers.get('x-api-key');
-  
-  if (!apiKey) {
-    return new Response(JSON.stringify({ error: 'No API key provided' }), {
-      status: 401,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
-  
-  try {
-    // Fetch single-use token from ElevenLabs
-    const response = await fetch('https://api.elevenlabs.io/v1/single-use-token/realtime_scribe', {
-      method: 'POST',
-      headers: {
-        'xi-api-key': apiKey,
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    const data = await response.text();
-    
-    return new Response(data, {
-      status: response.status,
-      headers: { 
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      }
-    });
-  } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
+  return new Response(JSON.stringify({ message: 'This endpoint is no longer used. Gemini API is called directly from the browser.' }), {
+    status: 410,
+    headers: { 'Content-Type': 'application/json' }
+  });
 }

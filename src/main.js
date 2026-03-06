@@ -1,8 +1,4 @@
-// Main entry point
-import { initApp } from './app.js';
 import './styles.css';
+import { initApp } from './app.js';
 
-// Initialize app when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
-    initApp();
-});
+initApp();

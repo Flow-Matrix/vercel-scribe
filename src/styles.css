@@ -138,33 +138,6 @@ select:focus {
     color: var(--text-primary);
 }
 
-/* ==================== TOGGLE GROUP ==================== */
-.toggle-group {
-    display: flex;
-    gap: 5px;
-}
-
-.toggle-btn {
-    flex: 1;
-    padding: 10px 15px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: var(--bg-secondary);
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.toggle-btn.active {
-    background: var(--accent-dim);
-    border-color: var(--accent);
-    color: var(--accent);
-}
-
-.toggle-btn:hover:not(.active) {
-    background: var(--border);
-}
-
 /* ==================== SETTINGS ==================== */
 .settings-grid {
     display: grid;
@@ -177,16 +150,6 @@ select:focus {
     font-size: 0.8rem;
     color: var(--text-secondary);
     margin-bottom: 8px;
-}
-
-.info-box {
-    margin-top: 15px;
-    padding: 12px;
-    background: var(--accent-dim);
-    border: 1px solid var(--accent);
-    border-radius: 8px;
-    font-size: 0.8rem;
-    color: var(--accent);
 }
 
 /* ==================== RECORDER ==================== */
@@ -204,6 +167,9 @@ select:focus {
     font-size: 2.5rem;
     cursor: pointer;
     transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .record-btn:hover {
@@ -222,46 +188,48 @@ select:focus {
     50% { transform: scale(1.05); }
 }
 
-#recordStatus {
+.record-status {
     margin-top: 15px;
     color: var(--text-secondary);
+    font-size: 0.9rem;
 }
 
 /* ==================== OUTPUT ==================== */
-.output-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
-}
-
-.output-header h2 {
-    margin: 0;
-}
-
-.output-text {
-    padding: 15px;
+.output-box {
     background: var(--bg-secondary);
+    border: 1px solid var(--border);
     border-radius: 8px;
-    min-height: 100px;
-    white-space: pre-wrap;
-    font-size: 0.95rem;
+    padding: 16px;
+    min-height: 80px;
+    font-size: 1rem;
     line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin-bottom: 12px;
 }
+
+.output-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+/* ==================== STATUS ==================== */
+.status {
+    margin-top: 10px;
+    font-size: 0.85rem;
+}
+
+.status.success { color: var(--success); }
+.status.error   { color: var(--error); }
 
 /* ==================== HISTORY ==================== */
-.history-list {
-    list-style: none;
-    max-height: 300px;
-    overflow-y: auto;
-}
-
-.history-item {
+.history-card {
     background: var(--bg-secondary);
-    padding: 12px;
-    margin-bottom: 8px;
-    border-radius: 8px;
     border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 12px;
 }
 
 .history-header {
@@ -272,129 +240,49 @@ select:focus {
 }
 
 .history-time {
-    font-size: 0.8rem;
-    color: var(--accent);
-    font-weight: 600;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
 }
 
 .history-text {
-    font-size: 0.8rem;
-    color: #ccc;
-    padding: 8px;
-    background: var(--bg-primary);
-    border-radius: 4px;
-    max-height: 60px;
-    overflow-y: auto;
-    margin-bottom: 10px;
+    font-size: 0.9rem;
+    line-height: 1.6;
     white-space: pre-wrap;
-}
-
-.history-actions {
-    display: flex;
-    gap: 5px;
-}
-
-.history-actions button {
-    flex: 1;
-    padding: 6px 10px;
-    font-size: 0.75rem;
-    background: var(--bg-primary);
-    border: 1px solid var(--border);
-    color: var(--text-secondary);
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-.history-actions button:hover {
-    background: var(--border);
-    color: var(--text-primary);
+    word-break: break-word;
 }
 
 /* ==================== LOG ==================== */
-.log-section details {
-    cursor: pointer;
-}
-
-.log-section summary {
-    color: var(--text-secondary);
-    font-size: 0.85rem;
-}
-
-.log-output {
-    margin-top: 15px;
-    padding: 10px;
-    background: var(--bg-secondary);
+.log-box {
+    background: #080808;
+    border: 1px solid var(--border);
     border-radius: 8px;
-    font-family: monospace;
-    font-size: 0.75rem;
-    max-height: 200px;
+    padding: 12px;
+    min-height: 80px;
+    max-height: 160px;
     overflow-y: auto;
+    font-family: 'Courier New', monospace;
+    margin-bottom: 20px;
 }
-
-.log-output .log-entry {
-    margin-bottom: 4px;
-}
-
-.log-output .info { color: #888; }
-.log-output .success { color: var(--success); }
-.log-output .error { color: var(--error); }
-.log-output .warn { color: var(--warning); }
-
-/* ==================== STATUS ==================== */
-.status {
-    margin-top: 10px;
-    font-size: 0.85rem;
-}
-
-.status.success { color: var(--success); }
-.status.error { color: var(--error); }
 
 /* ==================== TOAST ==================== */
 .toast {
     position: fixed;
     bottom: 30px;
     left: 50%;
-    transform: translateX(-50%);
-    padding: 12px 25px;
+    transform: translateX(-50%) translateY(20px);
     background: var(--accent);
     color: #000;
-    border-radius: 25px;
     font-weight: 600;
+    padding: 10px 24px;
+    border-radius: 999px;
+    font-size: 0.9rem;
     opacity: 0;
-    transition: opacity 0.3s;
     pointer-events: none;
+    transition: all 0.3s ease;
+    z-index: 9999;
 }
 
 .toast.show {
     opacity: 1;
-}
-
-/* ==================== SPINNER ==================== */
-.spinner {
-    display: inline-block;
-    width: 16px;
-    height: 16px;
-    border: 2px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-/* ==================== RESPONSIVE ==================== */
-@media (max-width: 500px) {
-    .settings-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .input-group {
-        flex-direction: column;
-    }
-    
-    .btn {
-        width: 100%;
-    }
+    transform: translateX(-50%) translateY(0);
 }
