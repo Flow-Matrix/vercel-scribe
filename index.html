@@ -1,12 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>🎙️ Scribe - Speech to Text</title>
-  <meta name="description" content="Speech-to-Text powered by Google Gemini 2.5 Flash. Record audio and get instant English transcriptions." />
+  <meta name="description"
+    content="Speech-to-Text powered by Google Gemini 2.5 Flash. Record audio and get instant English transcriptions." />
   <link rel="stylesheet" href="/src/styles.css" />
 </head>
+
 <body>
   <div class="container">
     <header>
@@ -17,7 +20,8 @@
     <!-- API Key Card -->
     <div class="card" id="apiKeyCard">
       <h2>🔑 Enter Your Gemini API Key</h2>
-      <p class="hint">Get your key from <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a></p>
+      <p class="hint">Get your key from <a href="https://aistudio.google.com/app/apikey"
+          target="_blank">aistudio.google.com</a></p>
       <div class="input-group">
         <input type="password" id="apiKeyInput" placeholder="AIza..." autocomplete="off" />
         <button class="btn btn-primary" id="saveKeyBtn">Save</button>
@@ -48,9 +52,18 @@
       </div>
     </div>
 
-    <!-- Recorder Card -->
+    <!-- Pill Recorder Card -->
     <div class="card recorder-section" id="recorderSection" style="display:none">
-      <button class="record-btn" id="recordBtn">🎤</button>
+      <div class="pill-recorder" id="pillRecorder">
+        <div class="pill-content">
+          <div class="status-dot" id="statusDot"></div>
+          <div class="pill-label" id="statusLabel">Ready</div>
+          <div class="visualizer-container" id="visualizerContainer">
+            <!-- 40 bars will be injected here via JS -->
+          </div>
+          <button class="pill-record-btn" id="recordBtn">🎤</button>
+        </div>
+      </div>
       <p class="record-status" id="recordStatus">Tap to Record</p>
     </div>
 
@@ -78,4 +91,5 @@
 
   <script type="module" src="/src/main.js"></script>
 </body>
+
 </html>

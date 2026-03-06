@@ -1,4 +1,4 @@
-// Main application logic — FlashScribe Web (Gemini Edition)
+// Main application logic — FlashScribe Web (Pill Edition)
 import { initDB, saveRecording, loadRecordings } from './storage.js';
 import { transcribeWithGemini } from './gemini.js';
 
@@ -7,11 +7,142 @@ let mediaRecorder = null;
 let isRecording = false;
 let recordings = [];
 let elements = {};
+let visualizer = null;
+
+// ─── Visualizer Class ───
+class Visualizer {
+    constructor(container, dot, label, pill) {
+        this.container = container;
+        this.dot = dot;
+        this.label = label;
+        this.pill = pill;
+        this.bars = [];
+        this.audioContext = null;
+        this.analyser = null;
+        this.dataArray = null;
+        this.animationId = null;
+        this.state = 'ready'; // ready, recording, processing, success, error
+        this.currentHeights = new Array(40).fill(2);
+        this.targetHeights = new Array(40).fill(2);
+
+        this._initBars();
+    }
+
+    _initBars() {
+        this.container.innerHTML = '';
+        for (let i = 0; i < 40; i++) {
+            const bar = document.createElement('div');
+            bar.className = 'vis-bar';
+            this.container.appendChild(bar);
+            this.bars.push(bar);
+        }
+    }
+
+    setState(state, customLabel = null) {
+        this.state = state;
+        const stateLabels = {
+            ready: 'Ready',
+            recording: 'Recording...',
+            processing: 'Thinking...',
+            success: 'Transcribed!',
+            error: 'Failed'
+        };
+
+        this.label.textContent = customLabel || stateLabels[state] || 'Ready';
+
+        // Update pill class for CSS state styling
+        this.pill.className = `pill-recorder state-${state}`;
+
+        if (state === 'processing') {
+            this._startProcessingAnim();
+        } else if (state === 'ready' || state === 'success' || state === 'error') {
+            this._stopAnim();
+        }
+    }
+
+    async startLive(stream) {
+        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const source = this.audioContext.createMediaStreamSource(stream);
+        this.analyser = this.audioContext.createAnalyser();
+        this.analyser.fftSize = 256;
+        source.connect(this.analyser);
+
+        this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+        this.setState('recording');
+        this._animate();
+    }
+
+    _animate() {
+        if (this.state !== 'recording') return;
+
+        this.analyser.getByteFrequencyData(this.dataArray);
+
+        // Map FFT bins to 40 bars (using a subset of lower frequencies for better look)
+        for (let i = 0; i < 40; i++) {
+            const val = this.dataArray[i * 2] || 0;
+            const target = Math.max(4, (val / 255) * 36);
+            this.currentHeights[i] += (target - this.currentHeights[i]) * 0.4;
+
+            const h = this.currentHeights[i];
+            this.bars[i].style.height = `${h}px`;
+
+            if (h > 6) {
+                const rel = Math.min(1, (h - 4) / 30);
+                this.bars[i].style.background = `rgb(${Math.floor(50 + 155 * rel)}, ${Math.floor(10 + 20 * rel)}, ${Math.floor(20 + 30 * rel)})`;
+            } else {
+                this.bars[i].style.background = '#222';
+            }
+        }
+
+        this.animationId = requestAnimationFrame(() => this._animate());
+    }
+
+    _startProcessingAnim() {
+        this._stopAnim();
+        const loop = () => {
+            const now = performance.now() / 1000;
+            for (let i = 0; i < 40; i++) {
+                const phase = now * 8 - i * 0.15;
+                const h = 10 + Math.sin(phase) * 6;
+                this.bars[i].style.height = `${h}px`;
+                this.bars[i].style.background = '#443311';
+            }
+            this.animationId = requestAnimationFrame(loop);
+        };
+        loop();
+    }
+
+    _stopAnim() {
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+            this.animationId = null;
+        }
+        if (this.audioContext) {
+            this.audioContext.close();
+            this.audioContext = null;
+        }
+
+        // Reset bars
+        this.bars.forEach(bar => {
+            bar.style.height = this.state === 'success' ? '12px' : '4px';
+            bar.style.background = this.state === 'success' ? '#114411' : '#222';
+        });
+    }
+}
 
 // ─── Init ─────────────────────────────────────────────────────────────
 export function initApp() {
     cacheElements();
     setupEventListeners();
+
+    // Initialize Visualizer
+    visualizer = new Visualizer(
+        elements.visualizerContainer,
+        elements.statusDot,
+        elements.statusLabel,
+        elements.pillRecorder
+    );
+
     loadState();
     log('Page loaded. Enter your Gemini API key to start.', 'info');
 }
@@ -34,6 +165,11 @@ function cacheElements() {
         historyList: document.getElementById('historyList'),
         logOutput: document.getElementById('logOutput'),
         toast: document.getElementById('toast'),
+        // Pill Elements
+        pillRecorder: document.getElementById('pillRecorder'),
+        statusDot: document.getElementById('statusDot'),
+        statusLabel: document.getElementById('statusLabel'),
+        visualizerContainer: document.getElementById('visualizerContainer')
     };
 }
 
@@ -121,7 +257,7 @@ async function startRecording() {
             const timestamp = new Date().toISOString();
             const id = Date.now();
 
-            setStatus('processing');
+            visualizer.setState('processing');
             log('⚙️ Processing audio...', 'info');
 
             const apiKey = localStorage.getItem('geminiApiKey');
@@ -144,25 +280,31 @@ async function startRecording() {
                     renderHistory();
                     elements.historySection.style.display = 'block';
 
-                    setStatus('idle');
+                    visualizer.setState('success');
                     log('✅ Transcription complete!', 'success');
                     showToast('✅ Transcribed!');
+
+                    // Reset to ready after 2s
+                    setTimeout(() => {
+                        if (visualizer.state === 'success') visualizer.setState('ready');
+                    }, 2000);
                 } else {
-                    setStatus('error');
+                    visualizer.setState('error', 'No text');
                     log('❌ No transcription returned.', 'error');
                 }
             } catch (err) {
-                setStatus('error');
+                visualizer.setState('error');
                 log(`❌ Error: ${err.message}`, 'error');
             }
         };
 
         mediaRecorder.start();
         isRecording = true;
-        setStatus('recording');
+        visualizer.startLive(stream);
         log('🎤 Recording started...', 'info');
     } catch (err) {
         log(`❌ Mic access failed: ${err.message}`, 'error');
+        visualizer.setState('error');
     }
 }
 
@@ -171,35 +313,7 @@ function stopRecording() {
         mediaRecorder.stop();
     }
     isRecording = false;
-    setStatus('processing');
     log('⏹️ Recording stopped. Sending to Gemini...', 'info');
-}
-
-// ─── UI State ─────────────────────────────────────────────────────────
-function setStatus(state) {
-    const btn = elements.recordBtn;
-    const statusEl = elements.recordStatus;
-
-    btn.classList.remove('recording');
-
-    switch (state) {
-        case 'recording':
-            btn.textContent = '⏹️';
-            btn.classList.add('recording');
-            statusEl.textContent = '🔴 Recording... tap to stop';
-            break;
-        case 'processing':
-            btn.textContent = '⏳';
-            statusEl.textContent = '🤖 Thinking...';
-            break;
-        case 'error':
-            btn.textContent = '🎤';
-            statusEl.textContent = '❌ Error — try again';
-            break;
-        default: // idle
-            btn.textContent = '🎤';
-            statusEl.textContent = 'Tap to Record';
-    }
 }
 
 // ─── Copy ─────────────────────────────────────────────────────────────

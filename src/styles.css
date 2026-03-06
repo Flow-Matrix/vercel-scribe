@@ -152,46 +152,144 @@ select:focus {
     margin-bottom: 8px;
 }
 
-/* ==================== RECORDER ==================== */
+/* ==================== PILL RECORDER ==================== */
 .recorder-section {
-    text-align: center;
-    padding: 40px 20px;
+    padding: 30px 10px;
 }
 
-.record-btn {
-    width: 100px;
-    height: 100px;
+.pill-recorder {
+    background: #121212;
+    border: 1px solid #333;
+    border-radius: 24px;
+    height: 52px;
+    max-width: 320px;
+    margin: 0 auto;
+    position: relative;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+}
+
+.pill-content {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    gap: 12px;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
-    border: 3px solid var(--accent);
-    background: var(--bg-secondary);
-    font-size: 2.5rem;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: inline-flex;
+    background: #444;
+    transition: background 0.3s;
+}
+
+.pill-label {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #e0e0e0;
+    min-width: 85px;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.visualizer-container {
+    flex: 1;
+    display: flex;
     align-items: center;
     justify-content: center;
+    gap: 2px;
+    height: 38px;
+    overflow: hidden;
 }
 
-.record-btn:hover {
-    background: var(--accent-dim);
-    transform: scale(1.05);
+.vis-bar {
+    width: 3px;
+    height: 4px;
+    background: #222;
+    border-radius: 2px;
+    transition: height 0.1s, background 0.2s;
+}
+
+.pill-record-btn {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 4px;
+    transition: transform 0.2s;
+    filter: grayscale(0.5);
+}
+
+.pill-record-btn:hover {
+    transform: scale(1.1);
+    filter: grayscale(0);
 }
 
 .record-btn.recording {
-    background: var(--error);
-    border-color: var(--error);
-    animation: pulse 1s infinite;
+    filter: grayscale(0);
 }
 
-@keyframes pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.05); }
+/* ==================== PILL STATES ==================== */
+/* Status Dot Colors */
+.state-ready .status-dot {
+    background: #444;
+}
+
+.state-recording .status-dot {
+    background: #ff4757;
+}
+
+.state-processing .status-dot {
+    background: #aa8811;
+}
+
+.state-success .status-dot {
+    background: #2ed573;
+}
+
+.state-error .status-dot {
+    background: #ff4757;
+}
+
+/* Bar Base Styles by State */
+.state-ready .vis-bar {
+    height: 4px;
+    background: #222;
+}
+
+.state-recording .vis-bar {
+    /* Dynamic via JS */
+}
+
+.state-processing .vis-bar {
+    background: #443311;
+}
+
+.state-success .vis-bar {
+    height: 12px;
+    background: #114411;
+}
+
+@keyframes bar-pulse {
+
+    0%,
+    100% {
+        transform: scaleY(1);
+    }
+
+    50% {
+        transform: scaleY(1.5);
+    }
 }
 
 .record-status {
-    margin-top: 15px;
+    margin-top: 20px;
     color: var(--text-secondary);
-    font-size: 0.9rem;
+    font-size: 0.85rem;
+    opacity: 0.6;
 }
 
 /* ==================== OUTPUT ==================== */
@@ -220,8 +318,13 @@ select:focus {
     font-size: 0.85rem;
 }
 
-.status.success { color: var(--success); }
-.status.error   { color: var(--error); }
+.status.success {
+    color: var(--success);
+}
+
+.status.error {
+    color: var(--error);
+}
 
 /* ==================== HISTORY ==================== */
 .history-card {
