@@ -158,41 +158,31 @@ select:focus {
     padding: 30px 20px;
 }
 
-/* Wrapper that holds the canvas pill */
+/* pill-wrapper IS the button now — no child overlay needed */
 .pill-wrapper {
     display: inline-block;
-    position: relative;
     border-radius: 28px;
-    /* Subtle neon glow around the pill — matches desktop style */
     filter: drop-shadow(0 0 10px rgba(0, 255, 157, 0.06));
     cursor: pointer;
     transition: filter 0.2s;
+    /* Keyboard focus ring */
+    outline: none;
 }
 
 .pill-wrapper:hover {
     filter: drop-shadow(0 0 18px rgba(0, 255, 157, 0.18));
 }
 
-.pill-wrapper canvas {
-    display: block;
-    border-radius: 28px;
-}
-
-/* Invisible full-size button that sits on top of the canvas,
-   so the whole pill area is a clickable tap target */
-.pill-tap-btn {
-    position: absolute;
-    inset: 0;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    border-radius: 28px;
-    /* Accessibility — visible on keyboard focus */
+.pill-wrapper:focus-visible {
+    outline: 2px solid var(--accent);
     outline-offset: 4px;
 }
 
-.pill-tap-btn:focus-visible {
-    outline: 2px solid var(--accent);
+.pill-wrapper canvas {
+    display: block;
+    border-radius: 28px;
+    /* Prevent canvas from being a separate pointer target on some browsers */
+    pointer-events: none;
 }
 
 .record-status {
@@ -200,6 +190,77 @@ select:focus {
     color: var(--text-secondary);
     font-size: 0.88rem;
     letter-spacing: 0.01em;
+}
+
+/* ==================== AUDIO UPLOAD ==================== */
+.upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    padding: 28px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+}
+
+.upload-zone:hover,
+.upload-zone.drag-over {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+}
+
+.upload-zone.has-file {
+    border-style: solid;
+    border-color: var(--success);
+    cursor: default;
+}
+
+.upload-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.upload-icon {
+    font-size: 2rem;
+}
+
+.upload-link {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.upload-selected {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: center;
+    font-size: 0.9rem;
+    color: var(--success);
+}
+
+.btn-clear {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 1rem;
+    line-height: 1;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: color 0.15s;
+}
+
+.btn-clear:hover {
+    color: var(--error);
+}
+
+.upload-submit {
+    margin-top: 14px;
+    width: 100%;
 }
 
 /* ==================== OUTPUT ==================== */
@@ -243,6 +304,11 @@ select:focus {
     border-radius: 8px;
     padding: 14px;
     margin-bottom: 12px;
+    transition: border-color 0.2s;
+}
+
+.history-card-failed {
+    border-color: rgba(244, 67, 54, 0.4);
 }
 
 .history-header {
@@ -250,11 +316,56 @@ select:focus {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 8px;
+    gap: 8px;
+    flex-wrap: wrap;
 }
 
 .history-time {
     font-size: 0.75rem;
     color: var(--text-secondary);
+    flex-shrink: 0;
+}
+
+.history-actions {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+/* Play button: blue tint */
+.history-play-btn {
+    border-color: #1565c0 !important;
+    color: #90caf9 !important;
+}
+
+.history-play-btn:hover {
+    background: rgba(21, 101, 192, 0.2) !important;
+}
+
+/* Reprocess button: amber tint */
+.history-reprocess-btn {
+    border-color: #795548 !important;
+    color: #ffcc80 !important;
+}
+
+.history-reprocess-btn:hover {
+    background: rgba(121, 85, 72, 0.2) !important;
+}
+
+/* Delete button: red tint */
+.history-delete-btn {
+    border-color: #b71c1c !important;
+    color: #ef9a9a !important;
+}
+
+.history-delete-btn:hover {
+    background: rgba(183, 28, 28, 0.2) !important;
+}
+
+.btn-small:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
 }
 
 .history-text {
@@ -263,6 +374,13 @@ select:focus {
     white-space: pre-wrap;
     word-break: break-word;
 }
+
+.failed-text {
+    color: var(--error);
+    font-style: italic;
+    font-size: 0.85rem;
+}
+
 
 /* ==================== LOG ==================== */
 .log-box {

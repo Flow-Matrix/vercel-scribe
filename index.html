@@ -5,8 +5,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>🎙️ Scribe - Speech to Text</title>
-  <meta name="description"
-    content="Speech-to-Text powered by Google Gemini 2.5 Flash. Record audio and get instant English transcriptions." />
+  <meta name="description" content="Speech-to-Text powered by Google Gemini 2.5 Flash." />
   <link rel="stylesheet" href="/src/styles.css" />
 </head>
 
@@ -36,7 +35,7 @@
         <div>
           <label for="languageSelect">Input Language</label>
           <select id="languageSelect">
-            <option value="auto">Auto Detect (Hinglish/Hindi/English)</option>
+            <option value="auto">Auto Detect (Hinglish / Hindi / English)</option>
             <option value="english">English Only</option>
           </select>
         </div>
@@ -52,15 +51,44 @@
       </div>
     </div>
 
-    <!-- Recorder Card — Pill replaces old button -->
+    <!-- ════════════════════════
+         RECORDER — Pill Canvas
+         FIX: pill-wrapper IS the button (no invisible overlay)
+         ════════════════════════ -->
     <div class="card recorder-section" id="recorderSection" style="display:none">
-      <!-- Pill canvas (the waveform visualizer) -->
-      <div class="pill-wrapper">
+      <div class="pill-wrapper" id="recordBtn" role="button" tabindex="0" aria-label="Toggle recording"
+        aria-pressed="false">
         <canvas id="pillCanvas"></canvas>
       </div>
-      <!-- Hidden clickable overlay so the whole pill area is tappable -->
-      <button class="pill-tap-btn" id="recordBtn" aria-label="Toggle recording"></button>
       <p class="record-status" id="recordStatus">Tap the pill to record</p>
+    </div>
+
+    <!-- ════════════════════════
+         AUDIO FILE UPLOAD
+         ════════════════════════ -->
+    <div class="card" id="uploadSection" style="display:none">
+      <h2>📁 Upload Audio File</h2>
+      <p class="hint">Supports MP3, WAV, FLAC, OGG, OPUS, M4A, AAC, WebM &amp; more</p>
+
+      <!-- Drop zone -->
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" id="audioFileInput"
+          accept="audio/*,.mp3,.wav,.wave,.flac,.ogg,.oga,.opus,.m4a,.aac,.webm,.weba,.mp4,.mpeg,.mpga,.amr,.3gp"
+          hidden />
+        <div class="upload-placeholder" id="uploadPlaceholder">
+          <span class="upload-icon">🎵</span>
+          <span>Drop an audio file here, or <span class="upload-link">tap to browse</span></span>
+        </div>
+        <div class="upload-selected" id="uploadSelected" style="display:none">
+          <span class="upload-icon">✅</span>
+          <span id="uploadFileName"></span>
+          <button class="btn-clear" id="clearFileBtn" title="Remove file">✕</button>
+        </div>
+      </div>
+
+      <button class="btn btn-primary upload-submit" id="processFileBtn" style="display:none">
+        🤖 Transcribe File
+      </button>
     </div>
 
     <!-- Output Card -->
