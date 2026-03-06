@@ -7,9 +7,6 @@
   <title>🎙️ Scribe - Speech to Text</title>
   <meta name="description"
     content="Speech-to-Text powered by Google Gemini 2.5 Flash. Record audio and get instant English transcriptions." />
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/src/styles.css" />
 </head>
 
@@ -55,19 +52,15 @@
       </div>
     </div>
 
-    <!-- Pill Recorder Card -->
+    <!-- Recorder Card — Pill replaces old button -->
     <div class="card recorder-section" id="recorderSection" style="display:none">
-      <div class="pill-recorder" id="pillRecorder">
-        <div class="pill-content">
-          <div class="status-dot" id="statusDot"></div>
-          <div class="pill-label" id="statusLabel">Ready</div>
-          <div class="visualizer-container" id="visualizerContainer">
-            <!-- 40 bars will be injected here via JS -->
-          </div>
-          <button class="pill-record-btn" id="recordBtn">🎤</button>
-        </div>
+      <!-- Pill canvas (the waveform visualizer) -->
+      <div class="pill-wrapper">
+        <canvas id="pillCanvas"></canvas>
       </div>
-      <p class="record-status" id="recordStatus">Tap to Record</p>
+      <!-- Hidden clickable overlay so the whole pill area is tappable -->
+      <button class="pill-tap-btn" id="recordBtn" aria-label="Toggle recording"></button>
+      <p class="record-status" id="recordStatus">Tap the pill to record</p>
     </div>
 
     <!-- Output Card -->

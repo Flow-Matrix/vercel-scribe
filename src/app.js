@@ -1,148 +1,19 @@
-// Main application logic — FlashScribe Web (Pill Edition)
+// Main application logic — FlashScribe Web (Gemini Edition)
 import { initDB, saveRecording, loadRecordings } from './storage.js';
 import { transcribeWithGemini } from './gemini.js';
+import { ScribePill } from './pill.js';
 
 // ─── State ───────────────────────────────────────────────────────────
 let mediaRecorder = null;
 let isRecording = false;
 let recordings = [];
 let elements = {};
-let visualizer = null;
-
-// ─── Visualizer Class ───
-class Visualizer {
-    constructor(container, dot, label, pill) {
-        this.container = container;
-        this.dot = dot;
-        this.label = label;
-        this.pill = pill;
-        this.bars = [];
-        this.audioContext = null;
-        this.analyser = null;
-        this.dataArray = null;
-        this.animationId = null;
-        this.state = 'ready'; // ready, recording, processing, success, error
-        this.currentHeights = new Array(40).fill(2);
-        this.targetHeights = new Array(40).fill(2);
-
-        this._initBars();
-    }
-
-    _initBars() {
-        this.container.innerHTML = '';
-        for (let i = 0; i < 40; i++) {
-            const bar = document.createElement('div');
-            bar.className = 'vis-bar';
-            this.container.appendChild(bar);
-            this.bars.push(bar);
-        }
-    }
-
-    setState(state, customLabel = null) {
-        this.state = state;
-        const stateLabels = {
-            ready: 'Ready',
-            recording: 'Recording...',
-            processing: 'Thinking...',
-            success: 'Transcribed!',
-            error: 'Failed'
-        };
-
-        this.label.textContent = customLabel || stateLabels[state] || 'Ready';
-
-        // Update pill class for CSS state styling
-        this.pill.className = `pill-recorder state-${state}`;
-
-        if (state === 'processing') {
-            this._startProcessingAnim();
-        } else if (state === 'ready' || state === 'success' || state === 'error') {
-            this._stopAnim();
-        }
-    }
-
-    async startLive(stream) {
-        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const source = this.audioContext.createMediaStreamSource(stream);
-        this.analyser = this.audioContext.createAnalyser();
-        this.analyser.fftSize = 256;
-        source.connect(this.analyser);
-
-        this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
-        this.setState('recording');
-        this._animate();
-    }
-
-    _animate() {
-        if (this.state !== 'recording') return;
-
-        this.analyser.getByteFrequencyData(this.dataArray);
-
-        // Map FFT bins to 40 bars (using a subset of lower frequencies for better look)
-        for (let i = 0; i < 40; i++) {
-            const val = this.dataArray[i * 2] || 0;
-            const target = Math.max(4, (val / 255) * 36);
-            this.currentHeights[i] += (target - this.currentHeights[i]) * 0.4;
-
-            const h = this.currentHeights[i];
-            this.bars[i].style.height = `${h}px`;
-
-            if (h > 6) {
-                const rel = Math.min(1, (h - 4) / 30);
-                this.bars[i].style.background = `rgb(${Math.floor(50 + 155 * rel)}, ${Math.floor(10 + 20 * rel)}, ${Math.floor(20 + 30 * rel)})`;
-            } else {
-                this.bars[i].style.background = '#222';
-            }
-        }
-
-        this.animationId = requestAnimationFrame(() => this._animate());
-    }
-
-    _startProcessingAnim() {
-        this._stopAnim();
-        const loop = () => {
-            const now = performance.now() / 1000;
-            for (let i = 0; i < 40; i++) {
-                const phase = now * 8 - i * 0.15;
-                const h = 10 + Math.sin(phase) * 6;
-                this.bars[i].style.height = `${h}px`;
-                this.bars[i].style.background = '#443311';
-            }
-            this.animationId = requestAnimationFrame(loop);
-        };
-        loop();
-    }
-
-    _stopAnim() {
-        if (this.animationId) {
-            cancelAnimationFrame(this.animationId);
-            this.animationId = null;
-        }
-        if (this.audioContext) {
-            this.audioContext.close();
-            this.audioContext = null;
-        }
-
-        // Reset bars
-        this.bars.forEach(bar => {
-            bar.style.height = this.state === 'success' ? '12px' : '4px';
-            bar.style.background = this.state === 'success' ? '#114411' : '#222';
-        });
-    }
-}
+let pill = null;        // ScribePill instance
 
 // ─── Init ─────────────────────────────────────────────────────────────
 export function initApp() {
     cacheElements();
     setupEventListeners();
-
-    // Initialize Visualizer
-    visualizer = new Visualizer(
-        elements.visualizerContainer,
-        elements.statusDot,
-        elements.statusLabel,
-        elements.pillRecorder
-    );
-
     loadState();
     log('Page loaded. Enter your Gemini API key to start.', 'info');
 }
@@ -158,6 +29,7 @@ function cacheElements() {
         recorderSection: document.getElementById('recorderSection'),
         recordBtn: document.getElementById('recordBtn'),
         recordStatus: document.getElementById('recordStatus'),
+        pillCanvas: document.getElementById('pillCanvas'),
         outputSection: document.getElementById('outputSection'),
         outputText: document.getElementById('outputText'),
         copyBtn: document.getElementById('copyBtn'),
@@ -165,11 +37,6 @@ function cacheElements() {
         historyList: document.getElementById('historyList'),
         logOutput: document.getElementById('logOutput'),
         toast: document.getElementById('toast'),
-        // Pill Elements
-        pillRecorder: document.getElementById('pillRecorder'),
-        statusDot: document.getElementById('statusDot'),
-        statusLabel: document.getElementById('statusLabel'),
-        visualizerContainer: document.getElementById('visualizerContainer')
     };
 }
 
@@ -225,6 +92,11 @@ function showAuthenticatedUI() {
     elements.settingsSection.style.display = 'block';
     elements.recorderSection.style.display = 'block';
     elements.historySection.style.display = 'block';
+
+    // Init pill once the canvas is in DOM
+    if (!pill && elements.pillCanvas) {
+        pill = new ScribePill(elements.pillCanvas);
+    }
 }
 
 // ─── Recording ────────────────────────────────────────────────────────
@@ -239,9 +111,11 @@ async function toggleRecording() {
 async function startRecording() {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const chunks = [];
 
-        // Prefer webm; fallback for Safari
+        // Attach stream to pill FIRST so visualizer starts immediately
+        if (pill) pill.attachStream(stream);
+
+        const chunks = [];
         const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
         mediaRecorder = new MediaRecorder(stream, { mimeType });
 
@@ -250,61 +124,58 @@ async function startRecording() {
         };
 
         mediaRecorder.onstop = async () => {
-            // Stop all tracks
             stream.getTracks().forEach(t => t.stop());
 
             const audioBlob = new Blob(chunks, { type: mimeType });
             const timestamp = new Date().toISOString();
             const id = Date.now();
 
-            visualizer.setState('processing');
-            log('⚙️ Processing audio...', 'info');
+            setStatus('processing');
 
             const apiKey = localStorage.getItem('geminiApiKey');
             const modelId = elements.modelSelect?.value || 'gemini-2.5-flash';
-
-            // Save model preference
             localStorage.setItem('geminiModel', modelId);
 
             try {
                 const text = await transcribeWithGemini(audioBlob, apiKey, modelId, log);
 
                 if (text) {
-                    // Show output
                     elements.outputText.textContent = text;
                     elements.outputSection.style.display = 'block';
+                    elements.outputSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
-                    // Save to IndexedDB
                     await saveRecording(id, audioBlob, text, timestamp);
                     recordings.unshift({ id, blob: audioBlob, text, timestamp });
                     renderHistory();
                     elements.historySection.style.display = 'block';
 
-                    visualizer.setState('success');
+                    setStatus('success');
                     log('✅ Transcription complete!', 'success');
                     showToast('✅ Transcribed!');
 
-                    // Reset to ready after 2s
-                    setTimeout(() => {
-                        if (visualizer.state === 'success') visualizer.setState('ready');
-                    }, 2000);
+                    // Reset pill to idle after 2 seconds (mirrors pill._hide_after)
+                    setTimeout(() => setStatus('idle'), 2000);
                 } else {
-                    visualizer.setState('error', 'No text');
+                    setStatus('error');
                     log('❌ No transcription returned.', 'error');
+                    setTimeout(() => setStatus('idle'), 3000);
                 }
             } catch (err) {
-                visualizer.setState('error');
+                setStatus('error');
                 log(`❌ Error: ${err.message}`, 'error');
+                setTimeout(() => setStatus('idle'), 3000);
             }
         };
 
         mediaRecorder.start();
         isRecording = true;
-        visualizer.startLive(stream);
+        setStatus('recording');
         log('🎤 Recording started...', 'info');
+
     } catch (err) {
         log(`❌ Mic access failed: ${err.message}`, 'error');
-        visualizer.setState('error');
+        setStatus('error');
+        setTimeout(() => setStatus('idle'), 3000);
     }
 }
 
@@ -313,7 +184,29 @@ function stopRecording() {
         mediaRecorder.stop();
     }
     isRecording = false;
+
+    // Detach stream from pill — bars will show processing wave
+    if (pill) pill.detachStream();
+
+    setStatus('processing');
     log('⏹️ Recording stopped. Sending to Gemini...', 'info');
+}
+
+// ─── UI State ─────────────────────────────────────────────────────────
+function setStatus(state) {
+    const statusEl = elements.recordStatus;
+
+    // Drive the pill animation
+    if (pill) pill.setState(state);
+
+    const messages = {
+        recording: '🔴 Recording... tap to stop',
+        processing: '🤖 Thinking...',
+        success: '✅ Done!',
+        error: '❌ Error — tap to retry',
+        idle: 'Tap the pill to record',
+    };
+    if (statusEl) statusEl.textContent = messages[state] || 'Tap the pill to record';
 }
 
 // ─── Copy ─────────────────────────────────────────────────────────────
