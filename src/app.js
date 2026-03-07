@@ -1,4 +1,5 @@
 // Main application logic — FlashScribe Web (Gemini Edition)
+// Supports: single API key, multi-key passcode unlock, smart rotation, custom models.
 import { initDB, saveRecording, loadRecordings, updateRecordingText, deleteRecording } from './storage.js';
 import { transcribeWithGemini } from './gemini.js';
 import { ScribePill } from './pill.js';
@@ -9,14 +10,14 @@ let isRecording = false;
 let recordings = [];
 let elements = {};
 let pill = null;
-let selectedFile = null;   // Audio file chosen via upload
+let selectedFile = null;
 
 // ─── Init ─────────────────────────────────────────────────────────────
 export function initApp() {
     cacheElements();
     setupEventListeners();
     loadState();
-    log('Page loaded. Enter your Gemini API key to start.', 'info');
+    log('Page loaded. Enter your Gemini API key or secret passcode.', 'info');
 }
 
 function cacheElements() {
@@ -27,8 +28,11 @@ function cacheElements() {
         settingsSection: document.getElementById('settingsSection'),
         languageSelect: document.getElementById('languageSelect'),
         modelSelect: document.getElementById('modelSelect'),
+        customModelRow: document.getElementById('customModelRow'),
+        customModelInput: document.getElementById('customModelInput'),
+        addCustomModelBtn: document.getElementById('addCustomModelBtn'),
         recorderSection: document.getElementById('recorderSection'),
-        recordBtn: document.getElementById('recordBtn'),     // pill-wrapper div
+        recordBtn: document.getElementById('recordBtn'),
         recordStatus: document.getElementById('recordStatus'),
         pillCanvas: document.getElementById('pillCanvas'),
         uploadSection: document.getElementById('uploadSection'),
@@ -50,14 +54,13 @@ function cacheElements() {
 }
 
 function setupEventListeners() {
-    // API Key
+    // API Key / Passcode
     elements.saveKeyBtn.addEventListener('click', saveApiKey);
     elements.apiKeyInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') saveApiKey();
     });
 
-    // ── FIX 1: Pill-wrapper is now the direct click/keyboard target ──
-    // No more transparent overlay — only clicks on the pill itself fire
+    // Recording — pill-wrapper is the direct click target
     elements.recordBtn.addEventListener('click', toggleRecording);
     elements.recordBtn.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -69,13 +72,10 @@ function setupEventListeners() {
     // Output
     elements.copyBtn.addEventListener('click', copyOutput);
 
-    // ── FIX 2: Audio file upload ─────────────────────────────────────
-    // Clicking anywhere on the drop zone opens the file picker
+    // Audio upload
     elements.uploadZone.addEventListener('click', () => {
         if (!selectedFile) elements.audioFileInput.click();
     });
-
-    // Drag and drop support
     elements.uploadZone.addEventListener('dragover', (e) => {
         e.preventDefault();
         elements.uploadZone.classList.add('drag-over');
@@ -89,31 +89,60 @@ function setupEventListeners() {
         const file = e.dataTransfer?.files?.[0];
         if (file) handleFileSelected(file);
     });
-
     elements.audioFileInput.addEventListener('change', (e) => {
         const file = e.target.files?.[0];
         if (file) handleFileSelected(file);
     });
-
     elements.clearFileBtn?.addEventListener('click', (e) => {
         e.stopPropagation();
         clearSelectedFile();
     });
-
     elements.processFileBtn.addEventListener('click', processUploadedFile);
+
+    // ── Custom model management ──────────────────────────────────────
+    elements.modelSelect.addEventListener('change', () => {
+        if (elements.modelSelect.value === '__add_custom__') {
+            elements.customModelRow.style.display = 'flex';
+            elements.customModelInput.focus();
+        } else {
+            elements.customModelRow.style.display = 'none';
+            localStorage.setItem('geminiModel', elements.modelSelect.value);
+        }
+    });
+
+    elements.addCustomModelBtn.addEventListener('click', addCustomModel);
+    elements.customModelInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') addCustomModel();
+    });
 }
 
 async function loadState() {
+    // Restore auth state
+    const savedKeys = localStorage.getItem('geminiApiKeys');
     const savedKey = localStorage.getItem('geminiApiKey');
-    if (savedKey) {
-        elements.apiKeyInput.value = savedKey;
+    if (savedKeys || savedKey) {
         showAuthenticatedUI();
+        const count = savedKeys ? JSON.parse(savedKeys).length : 1;
+        elements.keyStatus.textContent = savedKeys
+            ? `✅ ${count} backup key(s) active`
+            : '✅ API key saved';
+        elements.keyStatus.className = 'status success';
     }
+
+    // Restore model selection
     const savedModel = localStorage.getItem('geminiModel');
-    if (savedModel && elements.modelSelect) {
+    if (savedModel) {
+        // If it's a custom model not in the default dropdown, inject it
+        if (!elements.modelSelect.querySelector(`option[value="${CSS.escape(savedModel)}"]`)) {
+            _injectCustomOption(savedModel);
+        }
         elements.modelSelect.value = savedModel;
     }
 
+    // Restore any user-added custom models
+    _restoreCustomModels();
+
+    // Load history
     try {
         await initDB();
         recordings = await loadRecordings();
@@ -127,19 +156,72 @@ async function loadState() {
     }
 }
 
-// ─── API Key ──────────────────────────────────────────────────────────
-function saveApiKey() {
-    const key = elements.apiKeyInput.value.trim();
-    if (!key) {
-        elements.keyStatus.textContent = '❌ Please enter an API key';
+// ─── API Key / Passcode Auth ──────────────────────────────────────────
+
+async function saveApiKey() {
+    const input = elements.apiKeyInput.value.trim();
+    if (!input) {
+        elements.keyStatus.textContent = '❌ Please enter an API key or passcode';
         elements.keyStatus.className = 'status error';
         return;
     }
-    localStorage.setItem('geminiApiKey', key);
-    elements.keyStatus.textContent = '✅ API key saved!';
-    elements.keyStatus.className = 'status success';
-    showAuthenticatedUI();
-    log('🔑 Gemini API key saved.', 'success');
+
+    // ── Detect: is this a raw API key or a secret passcode? ──────────
+    if (input.startsWith('AIza')) {
+        // Direct API key — store as single key
+        localStorage.setItem('geminiApiKey', input);
+        localStorage.removeItem('geminiApiKeys'); // clear multi-key if any
+        elements.keyStatus.textContent = '✅ API key saved!';
+        elements.keyStatus.className = 'status success';
+        showAuthenticatedUI();
+        log('🔑 Single Gemini API key saved.', 'success');
+    } else {
+        // Assume it's a passcode — call the backend
+        elements.keyStatus.textContent = '🔄 Verifying passcode...';
+        elements.keyStatus.className = 'status';
+        log('🔐 Checking passcode with server...', 'info');
+
+        try {
+            const response = await fetch('/api/get_keys', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ passcode: input }),
+            });
+
+            if (response.status === 401) {
+                elements.keyStatus.textContent = '❌ Invalid passcode';
+                elements.keyStatus.className = 'status error';
+                log('❌ Passcode rejected by server.', 'error');
+                return;
+            }
+
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.error || `HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+            const keys = data.keys;
+
+            if (!keys || keys.length === 0) {
+                throw new Error('Server returned no keys');
+            }
+
+            // Store the array
+            localStorage.setItem('geminiApiKeys', JSON.stringify(keys));
+            localStorage.removeItem('geminiApiKey'); // clear single key
+            elements.keyStatus.textContent = `✅ Unlocked ${keys.length} backup key(s)!`;
+            elements.keyStatus.className = 'status success';
+            showAuthenticatedUI();
+            log(`🔑 Passcode accepted! ${keys.length} key(s) unlocked.`, 'success');
+            showToast(`🔑 ${keys.length} key(s) unlocked!`);
+
+        } catch (err) {
+            elements.keyStatus.textContent = `❌ Error: ${err.message}`;
+            elements.keyStatus.className = 'status error';
+            log(`❌ Passcode error: ${err.message}`, 'error');
+        }
+    }
 }
 
 function showAuthenticatedUI() {
@@ -148,13 +230,78 @@ function showAuthenticatedUI() {
     elements.uploadSection.style.display = 'block';
     elements.historySection.style.display = 'block';
 
-    // Init pill once the canvas is in DOM
     if (!pill && elements.pillCanvas) {
         pill = new ScribePill(elements.pillCanvas);
     }
 }
 
-// ─── FIX 2: Audio File Upload ─────────────────────────────────────────
+// ─── Get Active Keys ──────────────────────────────────────────────────
+// Returns the array of keys (multi or single) for use by gemini.js
+
+function getActiveKeys() {
+    const multiKeys = localStorage.getItem('geminiApiKeys');
+    if (multiKeys) {
+        try { return JSON.parse(multiKeys); } catch { /* fall through */ }
+    }
+    const singleKey = localStorage.getItem('geminiApiKey');
+    if (singleKey) return [singleKey];
+    return [];
+}
+
+// ─── Custom Model Management ──────────────────────────────────────────
+
+function addCustomModel() {
+    const modelName = elements.customModelInput.value.trim();
+    if (!modelName) return;
+
+    // Inject it into the dropdown
+    _injectCustomOption(modelName);
+
+    // Save to localStorage for persistence
+    const customs = _getCustomModels();
+    if (!customs.includes(modelName)) {
+        customs.push(modelName);
+        localStorage.setItem('customGeminiModels', JSON.stringify(customs));
+    }
+
+    // Select the newly added model
+    elements.modelSelect.value = modelName;
+    localStorage.setItem('geminiModel', modelName);
+
+    // Clean up UI
+    elements.customModelInput.value = '';
+    elements.customModelRow.style.display = 'none';
+
+    log(`✨ Custom model "${modelName}" added to dropdown.`, 'success');
+    showToast(`✨ Model "${modelName}" added!`);
+}
+
+function _injectCustomOption(modelName) {
+    // Don't duplicate
+    if (elements.modelSelect.querySelector(`option[value="${CSS.escape(modelName)}"]`)) return;
+
+    const opt = document.createElement('option');
+    opt.value = modelName;
+    opt.textContent = modelName + ' (custom)';
+
+    // Insert before the sentinel "__add_custom__" option
+    const sentinel = elements.modelSelect.querySelector('option[value="__add_custom__"]');
+    elements.modelSelect.insertBefore(opt, sentinel);
+}
+
+function _restoreCustomModels() {
+    const customs = _getCustomModels();
+    customs.forEach(m => _injectCustomOption(m));
+}
+
+function _getCustomModels() {
+    try {
+        return JSON.parse(localStorage.getItem('customGeminiModels') || '[]');
+    } catch { return []; }
+}
+
+// ─── Audio File Upload ────────────────────────────────────────────────
+
 const SUPPORTED_AUDIO_TYPES = new Set([
     'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/wave', 'audio/x-wav',
     'audio/flac', 'audio/x-flac', 'audio/ogg', 'audio/vorbis', 'audio/opus',
@@ -163,9 +310,8 @@ const SUPPORTED_AUDIO_TYPES = new Set([
 ]);
 
 function handleFileSelected(file) {
-    // Accept audio/* or any of our known extensions
     const isAudio = file.type.startsWith('audio/') ||
-        file.type.startsWith('video/') || // webm video containers carry audio
+        file.type.startsWith('video/') ||
         SUPPORTED_AUDIO_TYPES.has(file.type) ||
         /\.(mp3|wav|wave|flac|ogg|oga|opus|m4a|aac|webm|weba|mp4|mpeg|mpga|amr|3gp)$/i.test(file.name);
 
@@ -176,14 +322,11 @@ function handleFileSelected(file) {
     }
 
     selectedFile = file;
-
-    // Show selected state
     elements.uploadPlaceholder.style.display = 'none';
     elements.uploadSelected.style.display = 'flex';
     elements.uploadFileName.textContent = file.name;
     elements.processFileBtn.style.display = 'block';
     elements.uploadZone.classList.add('has-file');
-
     log(`📁 File selected: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`, 'info');
 }
 
@@ -199,19 +342,16 @@ function clearSelectedFile() {
 async function processUploadedFile() {
     if (!selectedFile) return;
 
-    const apiKey = localStorage.getItem('geminiApiKey');
-    if (!apiKey) {
-        showToast('⚠️ No API key saved');
-        return;
-    }
+    const keys = getActiveKeys();
+    if (keys.length === 0) { showToast('⚠️ No API key saved'); return; }
 
     const modelId = elements.modelSelect?.value || 'gemini-2.5-flash';
+    localStorage.setItem('geminiModel', modelId);
     const id = Date.now();
     const timestamp = new Date().toISOString();
 
     log(`📁 Processing uploaded file: ${selectedFile.name}`, 'info');
 
-    // ── FIX 3 applied to uploads too: save blob BEFORE calling Gemini ──
     const audioBlob = selectedFile;
     await _saveAndRender(id, audioBlob, '⏳ Processing... (tap Reprocess if failed)', timestamp);
 
@@ -220,7 +360,7 @@ async function processUploadedFile() {
     processBtn.textContent = '⏳ Transcribing...';
 
     try {
-        const text = await transcribeWithGemini(audioBlob, apiKey, modelId, log);
+        const text = await transcribeWithGemini(audioBlob, keys, modelId, log);
         if (text) {
             await _updateAndRender(id, text);
             elements.outputText.textContent = text;
@@ -228,8 +368,6 @@ async function processUploadedFile() {
             elements.outputSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             showToast('✅ File transcribed!');
             log('✅ File transcription complete!', 'success');
-
-            // Clear the upload zone after success
             clearSelectedFile();
         } else {
             await _updateAndRender(id, '❌ TRANSCRIPTION FAILED — tap Reprocess to try again');
@@ -245,6 +383,7 @@ async function processUploadedFile() {
 }
 
 // ─── Recording Toggle ─────────────────────────────────────────────────
+
 async function toggleRecording() {
     if (!isRecording) {
         await startRecording();
@@ -262,7 +401,6 @@ async function startRecording() {
         const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
         mediaRecorder = new MediaRecorder(stream, { mimeType });
 
-        // Store id/timestamp here so we can save before Gemini returns
         const recordingId = Date.now();
         const timestamp = new Date().toISOString();
 
@@ -276,19 +414,18 @@ async function startRecording() {
 
             const audioBlob = new Blob(chunks, { type: mimeType });
 
-            // ── FIX 3: Save audio IMMEDIATELY before calling Gemini ──────
-            // This guarantees audio is preserved even if transcription fails
+            // Save audio IMMEDIATELY before calling Gemini
             await _saveAndRender(recordingId, audioBlob, '⏳ Processing... (tap Reprocess if failed)', timestamp);
 
             setStatus('processing');
             log('⚙️ Sending to Gemini...', 'info');
 
-            const apiKey = localStorage.getItem('geminiApiKey');
+            const keys = getActiveKeys();
             const modelId = elements.modelSelect?.value || 'gemini-2.5-flash';
             localStorage.setItem('geminiModel', modelId);
 
             try {
-                const text = await transcribeWithGemini(audioBlob, apiKey, modelId, log);
+                const text = await transcribeWithGemini(audioBlob, keys, modelId, log);
                 if (text) {
                     await _updateAndRender(recordingId, text);
                     elements.outputText.textContent = text;
@@ -335,11 +472,10 @@ function stopRecording() {
 }
 
 // ─── Save Helpers ─────────────────────────────────────────────────────
-/** Save a recording and re-render history immediately */
+
 async function _saveAndRender(id, blob, initialText, timestamp) {
     try {
         await saveRecording(id, blob, initialText, timestamp);
-        // Rebuild in-memory list and UI
         recordings = await loadRecordings();
         renderHistory();
         elements.historySection.style.display = 'block';
@@ -348,7 +484,6 @@ async function _saveAndRender(id, blob, initialText, timestamp) {
     }
 }
 
-/** Update just the text of an existing recording, then re-render */
 async function _updateAndRender(id, text) {
     try {
         await updateRecordingText(id, text);
@@ -360,6 +495,7 @@ async function _updateAndRender(id, text) {
 }
 
 // ─── UI State ─────────────────────────────────────────────────────────
+
 function setStatus(state) {
     if (pill) pill.setState(state);
     const messages = {
@@ -375,6 +511,7 @@ function setStatus(state) {
 }
 
 // ─── Copy ─────────────────────────────────────────────────────────────
+
 function copyOutput() {
     const text = elements.outputText.textContent;
     if (!text) return;
@@ -384,9 +521,8 @@ function copyOutput() {
     });
 }
 
-// ─── History Rendering ────────────────────────────────────────────────
-// FIX 3: Each card has a Play button (reads blob from IndexedDB)
-//        and a Reprocess button (re-sends to Gemini)
+// ─── History ──────────────────────────────────────────────────────────
+
 function renderHistory() {
     const list = elements.historyList;
     if (!list) return;
@@ -412,19 +548,15 @@ function renderHistory() {
             <div class="history-text ${isFailed ? 'failed-text' : ''}">${escapeHtml(rec.text)}</div>
         `;
 
-        // Play
         if (rec.blob) {
             card.querySelector('.history-play-btn')?.addEventListener('click', () => playBlob(rec.blob, rec.id));
         }
-        // Reprocess
         card.querySelector('.history-reprocess-btn')?.addEventListener('click', () => reprocessRecording(rec.id));
-        // Copy
         card.querySelector('.history-copy-btn')?.addEventListener('click', () => {
             if (!isFailed) {
                 navigator.clipboard.writeText(rec.text).then(() => showToast('📋 Copied!'));
             }
         });
-        // Delete
         card.querySelector('.history-delete-btn')?.addEventListener('click', async () => {
             await deleteRecording(rec.id);
             recordings = recordings.filter(r => r.id !== rec.id);
@@ -435,10 +567,8 @@ function renderHistory() {
     });
 }
 
-// Play audio blob in-browser
 const _activePlayers = {};
 function playBlob(blob, id) {
-    // Stop any existing player for this id
     if (_activePlayers[id]) {
         _activePlayers[id].pause();
         _activePlayers[id].src = '';
@@ -455,24 +585,22 @@ function playBlob(blob, id) {
     };
 }
 
-// Reprocess: find the recording, re-send its blob to Gemini
 async function reprocessRecording(id) {
     const rec = recordings.find(r => r.id === id);
     if (!rec?.blob) {
         showToast('⚠️ No audio saved for this recording');
         return;
     }
-    const apiKey = localStorage.getItem('geminiApiKey');
-    if (!apiKey) { showToast('⚠️ No API key saved'); return; }
+    const keys = getActiveKeys();
+    if (keys.length === 0) { showToast('⚠️ No API key saved'); return; }
 
     const modelId = elements.modelSelect?.value || 'gemini-2.5-flash';
     log(`🔄 Reprocessing recording from ${new Date(rec.timestamp).toLocaleTimeString()}...`, 'info');
 
-    // Update text to show pending
     await _updateAndRender(id, '⏳ Reprocessing...');
 
     try {
-        const text = await transcribeWithGemini(rec.blob, apiKey, modelId, log);
+        const text = await transcribeWithGemini(rec.blob, keys, modelId, log);
         if (text) {
             await _updateAndRender(id, text);
             elements.outputText.textContent = text;
@@ -490,6 +618,7 @@ async function reprocessRecording(id) {
 }
 
 // ─── Log ──────────────────────────────────────────────────────────────
+
 export function log(message, level = 'info') {
     const logEl = elements.logOutput;
     if (!logEl) return;
@@ -503,6 +632,7 @@ export function log(message, level = 'info') {
 }
 
 // ─── Toast ────────────────────────────────────────────────────────────
+
 function showToast(msg) {
     elements.toast.textContent = msg;
     elements.toast.classList.add('show');
@@ -510,6 +640,7 @@ function showToast(msg) {
 }
 
 // ─── Utils ────────────────────────────────────────────────────────────
+
 function escapeHtml(text = '') {
     return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }

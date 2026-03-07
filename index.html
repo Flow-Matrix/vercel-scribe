@@ -1,28 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>🎙️ Scribe - Speech to Text</title>
-  <meta name="description" content="Speech-to-Text powered by Google Gemini 2.5 Flash." />
+  <meta name="description" content="Speech-to-Text powered by Google Gemini. Record audio and get instant English transcriptions." />
   <link rel="stylesheet" href="/src/styles.css" />
 </head>
-
 <body>
   <div class="container">
     <header>
       <h1>🎙️ Scribe</h1>
-      <p class="subtitle">Speech-to-Text powered by Google Gemini 2.5 Flash</p>
+      <p class="subtitle">Speech-to-Text powered by Google Gemini</p>
     </header>
 
-    <!-- API Key Card -->
+    <!-- API Key / Passcode Card -->
     <div class="card" id="apiKeyCard">
-      <h2>🔑 Enter Your Gemini API Key</h2>
-      <p class="hint">Get your key from <a href="https://aistudio.google.com/app/apikey"
-          target="_blank">aistudio.google.com</a></p>
+      <h2>🔑 API Key or Secret Passcode</h2>
+      <p class="hint">Enter a <a href="https://aistudio.google.com/app/apikey" target="_blank">Gemini API key</a> or your secret passcode</p>
       <div class="input-group">
-        <input type="password" id="apiKeyInput" placeholder="AIza..." autocomplete="off" />
+        <input type="password" id="apiKeyInput" placeholder="AIza... or secret passcode" autocomplete="off" />
         <button class="btn btn-primary" id="saveKeyBtn">Save</button>
       </div>
       <p class="status" id="keyStatus"></p>
@@ -41,40 +38,49 @@
         </div>
         <div>
           <label for="modelSelect">Gemini Model</label>
-          <select id="modelSelect">
-            <option value="gemini-2.5-flash" selected>gemini-2.5-flash</option>
-            <option value="gemini-2.5-flash-8b">gemini-2.5-flash-8b</option>
-            <option value="gemini-2.5-pro">gemini-2.5-pro</option>
-            <option value="gemini-1.5-flash">gemini-1.5-flash</option>
-          </select>
+          <div class="model-select-row">
+            <select id="modelSelect">
+              <!-- Latest / Preview -->
+              <option value="gemini-3.1-flash">gemini-3.1-flash</option>
+              <option value="gemini-3.0-flash">gemini-3.0-flash</option>
+              <option value="gemini-3.0-pro">gemini-3.0-pro</option>
+              <!-- Stable -->
+              <option value="gemini-2.5-flash" selected>gemini-2.5-flash</option>
+              <option value="gemini-2.5-pro">gemini-2.5-pro</option>
+              <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+              <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite</option>
+              <!-- Legacy -->
+              <option value="gemini-1.5-flash">gemini-1.5-flash</option>
+              <!-- Sentinel for custom model input -->
+              <option value="__add_custom__">＋ Add Custom Model</option>
+            </select>
+            <!-- Hidden input that appears when "Add Custom Model" is selected -->
+            <div class="custom-model-row" id="customModelRow" style="display:none">
+              <input type="text" id="customModelInput" placeholder="e.g. gemini-4.0-ultra" />
+              <button class="btn btn-small" id="addCustomModelBtn">Add</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- ════════════════════════
-         RECORDER — Pill Canvas
-         FIX: pill-wrapper IS the button (no invisible overlay)
-         ════════════════════════ -->
+    <!-- Recorder — Pill Canvas -->
     <div class="card recorder-section" id="recorderSection" style="display:none">
-      <div class="pill-wrapper" id="recordBtn" role="button" tabindex="0" aria-label="Toggle recording"
-        aria-pressed="false">
+      <div class="pill-wrapper" id="recordBtn" role="button" tabindex="0"
+           aria-label="Toggle recording" aria-pressed="false">
         <canvas id="pillCanvas"></canvas>
       </div>
       <p class="record-status" id="recordStatus">Tap the pill to record</p>
     </div>
 
-    <!-- ════════════════════════
-         AUDIO FILE UPLOAD
-         ════════════════════════ -->
+    <!-- Audio File Upload -->
     <div class="card" id="uploadSection" style="display:none">
       <h2>📁 Upload Audio File</h2>
       <p class="hint">Supports MP3, WAV, FLAC, OGG, OPUS, M4A, AAC, WebM &amp; more</p>
-
-      <!-- Drop zone -->
       <div class="upload-zone" id="uploadZone">
         <input type="file" id="audioFileInput"
-          accept="audio/*,.mp3,.wav,.wave,.flac,.ogg,.oga,.opus,.m4a,.aac,.webm,.weba,.mp4,.mpeg,.mpga,.amr,.3gp"
-          hidden />
+               accept="audio/*,.mp3,.wav,.wave,.flac,.ogg,.oga,.opus,.m4a,.aac,.webm,.weba,.mp4,.mpeg,.mpga,.amr,.3gp"
+               hidden />
         <div class="upload-placeholder" id="uploadPlaceholder">
           <span class="upload-icon">🎵</span>
           <span>Drop an audio file here, or <span class="upload-link">tap to browse</span></span>
@@ -85,7 +91,6 @@
           <button class="btn-clear" id="clearFileBtn" title="Remove file">✕</button>
         </div>
       </div>
-
       <button class="btn btn-primary upload-submit" id="processFileBtn" style="display:none">
         🤖 Transcribe File
       </button>
@@ -115,5 +120,4 @@
 
   <script type="module" src="/src/main.js"></script>
 </body>
-
 </html>

@@ -152,6 +152,24 @@ select:focus {
     margin-bottom: 8px;
 }
 
+/* Model select + custom model input */
+.model-select-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.custom-model-row {
+    display: flex;
+    gap: 6px;
+}
+
+.custom-model-row input {
+    flex: 1;
+    padding: 8px 10px;
+    font-size: 0.85rem;
+}
+
 /* ==================== RECORDER / PILL ==================== */
 .recorder-section {
     text-align: center;
