@@ -549,18 +549,17 @@ function renderHistory() {
         `;
 
         if (rec.blob) {
-            card.querySelector('.history-play-btn')?.addEventListener('click', () => playBlob(rec.blob, Number(rec.id)));
+            card.querySelector('.history-play-btn')?.addEventListener('click', () => playBlob(rec.blob, rec.id));
         }
-        card.querySelector('.history-reprocess-btn')?.addEventListener('click', () => reprocessRecording(Number(rec.id)));
+        card.querySelector('.history-reprocess-btn')?.addEventListener('click', () => reprocessRecording(rec.id));
         card.querySelector('.history-copy-btn')?.addEventListener('click', () => {
             if (!isFailed) {
                 navigator.clipboard.writeText(rec.text).then(() => showToast('📋 Copied!'));
             }
         });
         card.querySelector('.history-delete-btn')?.addEventListener('click', async () => {
-            const numId = Number(rec.id);
-            await deleteRecording(numId);
-            recordings = recordings.filter(r => r.id !== numId);
+            await deleteRecording(rec.id);
+            recordings = recordings.filter(r => r.id !== rec.id);
             renderHistory();
         });
 
@@ -587,9 +586,7 @@ function playBlob(blob, id) {
 }
 
 async function reprocessRecording(id) {
-    // Explicitly cast to Number to guarantee exact match with IndexedDB key
-    const numId = Number(id);
-    const rec = recordings.find(r => r.id === numId);
+    const rec = recordings.find(r => r.id === id);
     if (!rec?.blob) {
         showToast('⚠️ No audio saved for this recording');
         return;
@@ -600,12 +597,12 @@ async function reprocessRecording(id) {
     const modelId = elements.modelSelect?.value || 'gemini-2.5-flash';
     log(`🔄 Reprocessing recording from ${new Date(rec.timestamp).toLocaleTimeString()}...`, 'info');
 
-    await _updateAndRender(numId, '⏳ Reprocessing...');
+    await _updateAndRender(id, '⏳ Reprocessing...');
 
     try {
         const text = await transcribeWithGemini(rec.blob, keys, modelId, log);
         if (text) {
-            await _updateAndRender(numId, text);
+            await _updateAndRender(id, text);
             elements.outputText.textContent = text;
             elements.outputSection.style.display = 'block';
             elements.outputSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
