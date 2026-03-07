@@ -156,6 +156,44 @@ async function loadState() {
     }
 }
 
+// ─── AES Decryption Payloads ───────────────────────────────────────────
+const PAYLOADS = {
+    "Mango_Tree": "lUslF0D6jKoaEKVQyi4cYQ==./BAlQQYpPKskvqOr.5+RdhsjSDaERoddnmXCK0Q==.HhCAgqA5iJVo06ygUXmc7vxR6BhQDdSSET/2xEFMXEzCRScGU0T6N22efE3ACtcKmOnvFSmKJAaVtzICJxslxS9UAgV/lz8uYdyOdLJNwLgdH3boOMLnYcB8peZNegFpZPm/NTbhNQUlRM9CMNqgSfmEfnIBtoQTOWiFU9FUfMjPH+tIet8mw+0BVhDxVOlncbvduEG0tdQ5TKLjEZZapuRSMUzBcC/FevWV4sG1Z+kclIrqVD6cwycV7UBFWrDGNDmiZ+qg7hU0SMzpU8jhrsNwgw==",
+    "Apple_Tree": "+B/SOq09UazZvDWnBH6vQA==.brzCzTWi4oL/osX+.xMfqEk6aGVvZ7Bzstce6lg==.RLYId9+hEGMnRMRlpTj7WbMKRBtM9g1e2QC1eho9S1Mkx/TlREkZLXDcOw=="
+};
+
+async function decryptPayload(passcode, payloadData) {
+    try {
+        const [salt64, iv64, tag64, cipher64] = payloadData.split('.');
+        const toBuf = (b64) => Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+
+        const salt = toBuf(salt64);
+        const iv = toBuf(iv64);
+        const tag = toBuf(tag64);
+        const ciphertext = toBuf(cipher64);
+
+        const data = new Uint8Array(ciphertext.length + tag.length);
+        data.set(ciphertext);
+        data.set(tag, ciphertext.length);
+
+        const enc = new TextEncoder();
+        const keyMaterial = await crypto.subtle.importKey(
+            "raw", enc.encode(passcode), { name: "PBKDF2" }, false, ["deriveBits", "deriveKey"]
+        );
+
+        const key = await crypto.subtle.deriveKey(
+            { name: "PBKDF2", salt: salt, iterations: 100000, hash: "SHA-256" },
+            keyMaterial, { name: "AES-GCM", length: 256 }, true, ["decrypt"]
+        );
+
+        const decryptedData = await crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, key, data);
+        const dec = new TextDecoder();
+        return JSON.parse(dec.decode(decryptedData));
+    } catch (e) {
+        return null;
+    }
+}
+
 // ─── API Key / Passcode Auth ──────────────────────────────────────────
 
 async function saveApiKey() {
@@ -176,35 +214,20 @@ async function saveApiKey() {
         showAuthenticatedUI();
         log('🔑 Single Gemini API key saved.', 'success');
     } else {
-        // Assume it's a passcode — call the backend
+        // Assume it's a passcode — decrypt locally using Web Crypto API
         elements.keyStatus.textContent = '🔄 Verifying passcode...';
         elements.keyStatus.className = 'status';
-        log('🔐 Checking passcode with server...', 'info');
+        log('🔐 Decrypting keys locally...', 'info');
 
         try {
-            const response = await fetch('/api/get_keys', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ passcode: input }),
-            });
-
-            if (response.status === 401) {
-                elements.keyStatus.textContent = '❌ Invalid passcode';
-                elements.keyStatus.className = 'status error';
-                log('❌ Passcode rejected by server.', 'error');
-                return;
+            const payload = PAYLOADS[input];
+            if (!payload) {
+                throw new Error('Invalid passcode');
             }
 
-            if (!response.ok) {
-                const err = await response.json().catch(() => ({}));
-                throw new Error(err.error || `HTTP ${response.status}`);
-            }
-
-            const data = await response.json();
-            const keys = data.keys;
-
+            const keys = await decryptPayload(input, payload);
             if (!keys || keys.length === 0) {
-                throw new Error('Server returned no keys');
+                throw new Error('Invalid passcode or decryption failed');
             }
 
             // Store the array
@@ -213,7 +236,7 @@ async function saveApiKey() {
             elements.keyStatus.textContent = `✅ Unlocked ${keys.length} backup key(s)!`;
             elements.keyStatus.className = 'status success';
             showAuthenticatedUI();
-            log(`🔑 Passcode accepted! ${keys.length} key(s) unlocked.`, 'success');
+            log(`🔑 Encryption passed! ${keys.length} key(s) unlocked locally.`, 'success');
             showToast(`🔑 ${keys.length} key(s) unlocked!`);
 
         } catch (err) {
