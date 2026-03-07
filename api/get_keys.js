@@ -23,23 +23,29 @@ export default async function handler(request) {
             });
         }
 
+        // ── Sanitize input: remove spaces, make lowercase ────────────────
+        const cleanPasscode = passcode.trim().toLowerCase();
+
         // ── Primary passcode: returns ALL keys ──────────────────────────
-        const primaryPass = process.env.SECRET_PASSCODE_PRIMARY;
+        const rawPrimary = process.env.SECRET_PASSCODE_PRIMARY || '';
+        const primaryPass = rawPrimary.trim().toLowerCase();
+
         // ── Secondary passcode: returns only Key 5 ─────────────────────
-        const secondaryPass = process.env.SECRET_PASSCODE_SECONDARY;
+        const rawSecondary = process.env.SECRET_PASSCODE_SECONDARY || '';
+        const secondaryPass = rawSecondary.trim().toLowerCase();
 
         let keys = [];
 
-        if (primaryPass && passcode === primaryPass) {
+        if (primaryPass && cleanPasscode === primaryPass) {
             // Collect all GEMINI_API_KEY_* env vars (1 through 10, flexible)
             for (let i = 1; i <= 10; i++) {
                 const key = process.env[`GEMINI_API_KEY_${i}`];
-                if (key) keys.push(key);
+                if (key) keys.push(key.trim());
             }
-        } else if (secondaryPass && passcode === secondaryPass) {
+        } else if (secondaryPass && cleanPasscode === secondaryPass) {
             // Only return key 5
             const key5 = process.env.GEMINI_API_KEY_5;
-            if (key5) keys.push(key5);
+            if (key5) keys.push(key5.trim());
         } else {
             return new Response(JSON.stringify({ error: 'Invalid passcode' }), {
                 status: 401,
