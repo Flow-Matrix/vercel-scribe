@@ -88,11 +88,8 @@ export async function transcribeWithGemini(audioBlob, config, modelId = 'gemini-
 
 // ─── API Callers ──────────────────────────────────────────────────────
 
-async function _callStudioAPI(base64Audio, mimeType, apiKey, modelId, thinkingLevel) {
-    const payload = buildPayload(base64Audio, mimeType, modelId, thinkingLevel);
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`;
-    return await _doFetch(url, payload, modelId);
-}
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelId)}:generateContent?key=${apiKey}`;
+    const start = performance.now();
 
 async function _callVertexAPI(base64Audio, mimeType, token, projectId, modelId, thinkingLevel) {
     const payload = buildPayload(base64Audio, mimeType, modelId, thinkingLevel);
