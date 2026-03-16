@@ -39,6 +39,15 @@ npm run build
 ```
 scribe/
 ├── src/
+│   ├── app.js          # Main application logic
+│   ├── batch.js        # Batch API transcription
+│   ├── main.js         # Entry point
+│   ├── storage.js      # IndexedDB persistence
+│   └── styles.css      # Styling
+├── index.html          # Main HTML
+├── package.json        # Dependencies
+├── vercel.json         # Vercel configuration
+└── vite.config.js      # Vite configuration
 │   ├── app.js          # UI Logic & State Management
 │   ├── gemini.js       # Transcription Engine & Vertex AI Auth
 │   ├── pill.js         # Canvas-based Audio Visualizer
