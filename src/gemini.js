@@ -143,7 +143,7 @@ async function _callGeminiAPI(base64Audio, mimeType, apiKey, modelId) {
         }
     };
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelId)}:generateContent?key=${apiKey}`;
     const start = performance.now();
 
     const response = await fetch(url, {
