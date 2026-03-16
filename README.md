@@ -1,32 +1,24 @@
-# 🎙️ Vercel Scribe - Speech-to-Text
+# 🎙️ FlashScribe Web - Speech-to-Text (Gemini Edition)
 
-A pure client-side speech-to-text app using ElevenLabs Scribe V2.
+A pure client-side speech-to-text app using Google Gemini.
 
-## Features
+## ✨ Features
 
 - 🎤 Record audio directly in browser
-- ⚡ Real-time transcription (WebSocket with VAD)
-- 📦 Batch transcription (fallback)
+- 🤖 AI-powered transcription with Gemini
+- 🔄 Smart model rotation and degradation fallback
 - 📜 Recording history (saved to IndexedDB)
-- 🔑 User-provided API key (no server secrets)
+- 🔑 User-provided API key or secret passcode unlock
 
-## Deploy to Vercel
+## 🚀 Deploy to Vercel
 
-### Option 1: GitHub (Recommended)
+This is a standard Vite project. You can deploy it to Vercel with zero configuration:
 
-1. Push this folder to a GitHub repository
-2. Go to [vercel.com](https://vercel.com)
-3. Click "Add New Project"
-4. Import your GitHub repository
-5. Click "Deploy"
+1. Push this repository to GitHub.
+2. Import the project into [Vercel](https://vercel.com).
+3. Vercel will automatically detect Vite and use `npm run build` as the build command and `dist` as the output directory.
 
-### Option 2: Drag and Drop
-
-1. Run `npm run build` locally
-2. Go to [vercel.com](https://vercel.com)
-3. Drag the `dist` folder to deploy
-
-## Local Development
+## 🛠️ Local Development
 
 ```bash
 # Install dependencies
@@ -39,38 +31,48 @@ npm run dev
 npm run build
 ```
 
-## Project Structure
+## 📂 Project Structure
 
 ```
 vercel-scribe/
 ├── api/
-│   └── token.js        # Vercel Edge Function (WebSocket token)
+│   └── token.js        # Vercel Edge Function (Legacy/Optional)
 ├── src/
 │   ├── app.js          # Main application logic
-│   ├── batch.js        # Batch API transcription
+│   ├── gemini.js       # Gemini transcription engine
 │   ├── main.js         # Entry point
+│   ├── pill.js         # UI component for recording
 │   ├── storage.js      # IndexedDB persistence
-│   ├── styles.css      # Styling
-│   └── websocket.js    # Real-time transcription
+│   └── styles.css      # Styling
 ├── index.html          # Main HTML
 ├── package.json        # Dependencies
 ├── vercel.json         # Vercel configuration
 └── vite.config.js      # Vite configuration
+│   ├── app.js          # UI Logic & State Management
+│   ├── gemini.js       # Transcription Engine & Vertex AI Auth
+│   ├── pill.js         # Canvas-based Audio Visualizer
+│   ├── storage.js      # IndexedDB Persistence
+│   ├── styles.css      # Multi-theme CSS
+│   └── main.js         # Entry point
+├── index.html          # Main application shell
+├── package.json        # Dependencies & Scripts
+└── vite.config.js      # Vite Configuration
 ```
 
 ## How It Works
 
-1. User enters their ElevenLabs API key
-2. Key is stored in browser localStorage
-3. When recording:
-   - **Batch Mode**: Audio sent directly to ElevenLabs batch API
-   - **Real-time Mode**: Token fetched from Edge Function, then WebSocket connection made
-4. Transcriptions saved to IndexedDB for history
+1. User enters their Gemini API key or a secret passcode
+2. Keys are stored in browser localStorage
+3. When recording or uploading:
+   - Audio is sent to the Gemini API for transcription
+   - The app uses smart rotation if multiple keys are provided
+   - If a model fails, it automatically falls back to other available models
+4. Transcriptions are saved to IndexedDB for history
 
 ## Security Note
 
 The API key is provided by the user in the UI. It's stored in localStorage and only sent to:
-- ElevenLabs API (batch transcription)
-- Vercel Edge Function -> ElevenLabs (token fetch)
+- Google Gemini API (transcription)
+## 🔒 Security Note
 
-The Edge Function acts as a minimal proxy to fetch WebSocket tokens since browsers can't set custom headers on WebSocket connections.
+Authentication credentials (API Keys or Service Account JSONs) are provided by the user and stored in `localStorage`. They are only sent directly to Google's API endpoints (`generativelanguage.googleapis.com` or `aiplatform.googleapis.com`). No backend server is involved in the transcription flow.

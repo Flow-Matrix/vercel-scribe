@@ -11,23 +11,57 @@
   <div class="container">
     <header>
       <h1>🎙️ Scribe</h1>
-      <p class="subtitle">Speech-to-Text powered by Google Gemini</p>
+      <p class="subtitle">Next-Gen Speech-to-Text powered by Gemini</p>
     </header>
 
-    <!-- API Key / Passcode Card -->
-    <div class="card" id="apiKeyCard">
-      <h2>🔑 API Key or Secret Passcode</h2>
-      <p class="hint">Enter a <a href="https://aistudio.google.com/app/apikey" target="_blank">Gemini API key</a> or your secret passcode</p>
-      <div class="input-group">
-        <input type="password" id="apiKeyInput" placeholder="AIza... or secret passcode" autocomplete="off" />
-        <button class="btn btn-primary" id="saveKeyBtn">Save</button>
+    <!-- Authentication & Settings Card -->
+    <div class="card" id="authCard">
+      <div class="header-with-action">
+        <h2>🔑 Configuration</h2>
+        <select id="themeSelect" class="btn-small" style="width: auto;">
+          <option value="dark">🌑 Dark</option>
+          <option value="light">☀️ Light</option>
+          <option value="pastel">🌸 Pastel</option>
+        </select>
       </div>
+
+      <!-- Auth Mode Toggle -->
+      <div class="auth-mode-selector">
+        <div class="mode-btn active" id="modeStudio" data-mode="studio">AI Studio</div>
+        <div class="mode-btn" id="modeVertex" data-mode="vertex">Vertex AI</div>
+      </div>
+
+      <!-- AI Studio Section -->
+      <div id="studioSection">
+        <p class="hint">Enter a <a href="https://aistudio.google.com/app/apikey" target="_blank">Gemini API key</a> or your secret passcode</p>
+        <div class="input-row">
+          <input type="password" id="apiKeyInput" placeholder="AIza... or secret passcode" autocomplete="off" />
+          <button class="btn btn-primary" id="saveKeyBtn">Save</button>
+        </div>
+      </div>
+
+      <!-- Vertex AI Section -->
+      <div id="vertexSection" class="hidden">
+        <p class="hint">Configure Vertex AI with your GCP project and service account</p>
+        <div class="input-group">
+          <div>
+            <label for="vertexProjectId">GCP Project ID</label>
+            <input type="text" id="vertexProjectId" placeholder="your-project-id" />
+          </div>
+          <div>
+            <label for="vertexServiceAccount">Service Account JSON</label>
+            <textarea id="vertexServiceAccount" placeholder='{ "type": "service_account", ... }'></textarea>
+          </div>
+          <button class="btn btn-primary" id="saveVertexBtn">Save Vertex Config</button>
+        </div>
+      </div>
+
       <p class="status" id="keyStatus"></p>
     </div>
 
-    <!-- Settings Card -->
+    <!-- Models & Params Card -->
     <div class="card" id="settingsSection" style="display:none">
-      <h2>⚙️ Settings</h2>
+      <h2>⚙️ Model Settings</h2>
       <div class="settings-grid">
         <div>
           <label for="languageSelect">Input Language</label>
@@ -40,26 +74,35 @@
           <label for="modelSelect">Gemini Model</label>
           <div class="model-select-row">
             <select id="modelSelect">
-              <!-- Latest / Preview -->
-              <option value="gemini-3.1-flash">gemini-3.1-flash</option>
-              <option value="gemini-3.0-flash">gemini-3.0-flash</option>
-              <option value="gemini-3.0-pro">gemini-3.0-pro</option>
-              <!-- Stable -->
-              <option value="gemini-2.5-flash" selected>gemini-2.5-flash</option>
-              <option value="gemini-2.5-pro">gemini-2.5-pro</option>
-              <option value="gemini-2.0-flash">gemini-2.0-flash</option>
-              <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite</option>
-              <!-- Legacy -->
-              <option value="gemini-1.5-flash">gemini-1.5-flash</option>
-              <!-- Sentinel for custom model input -->
+              <optgroup label="Experimental">
+                <option value="gemini-2.0-pro-exp-02-05">gemini-2.0-pro-exp</option>
+                <option value="gemini-2.0-flash-thinking-exp-01-21">gemini-2.0-flash-thinking</option>
+                <option value="gemini-2.0-flash-exp">gemini-2.0-flash-exp</option>
+              </optgroup>
+              <optgroup label="Stable">
+                <option value="gemini-2.0-flash" selected>gemini-2.0-flash</option>
+                <option value="gemini-1.5-pro">gemini-1.5-pro</option>
+                <option value="gemini-1.5-flash">gemini-1.5-flash</option>
+                <option value="gemini-1.5-flash-8b">gemini-1.5-flash-8b</option>
+              </optgroup>
               <option value="__add_custom__">＋ Add Custom Model</option>
             </select>
-            <!-- Hidden input that appears when "Add Custom Model" is selected -->
-            <div class="custom-model-row" id="customModelRow" style="display:none">
-              <input type="text" id="customModelInput" placeholder="e.g. gemini-4.0-ultra" />
-              <button class="btn btn-small" id="addCustomModelBtn">Add</button>
+            <div class="custom-model-row" id="customModelRow" style="display:none; margin-top: 8px;">
+              <div class="input-row">
+                <input type="text" id="customModelInput" placeholder="e.g. gemini-3.0-ultra" />
+                <button class="btn btn-small" id="addCustomModelBtn">Add</button>
+              </div>
             </div>
           </div>
+        </div>
+        <div id="thinkingLevelRow" class="hidden">
+          <label for="thinkingLevelSelect">Thinking Level</label>
+          <select id="thinkingLevelSelect">
+            <option value="0">None (Standard)</option>
+            <option value="4000">Low (4k budget)</option>
+            <option value="16000" selected>Medium (16k budget)</option>
+            <option value="32000">High (32k budget)</option>
+          </select>
         </div>
       </div>
     </div>
@@ -117,6 +160,16 @@
     <!-- Toast -->
     <div class="toast" id="toast"></div>
   </div>
+
+  <style>
+    .header-with-action {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+    .header-with-action h2 { margin-bottom: 0; }
+  </style>
 
   <script type="module" src="/src/main.js"></script>
 </body>
