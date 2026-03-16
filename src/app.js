@@ -559,7 +559,7 @@ function renderHistory() {
         const ts = new Date(rec.timestamp).toLocaleString();
         card.innerHTML = `
             <div class="history-header">
-                <span class="history-time">${ts}</span>
+                <span class="history-time">${escapeHtml(ts)}</span>
                 <div class="history-actions">
                     ${rec.blob ? `<button class="btn btn-small history-play-btn" data-id="${rec.id}">▶ Play</button>` : ''}
                     <button class="btn btn-small history-reprocess-btn" data-id="${rec.id}">🔄 Reprocess</button>
