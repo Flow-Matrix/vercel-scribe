@@ -1,17 +1,14 @@
-# 🎙️ Scribe - Speech-to-Text (Gemini & Vertex AI Edition)
+# 🎙️ FlashScribe Web - Speech-to-Text (Gemini Edition)
 
-A pure client-side speech-to-text application powered by Google Gemini. Optimized for multilingual transcription (Hinglish/Hindi/English) and technical accuracy.
+A pure client-side speech-to-text app using Google Gemini.
 
 ## ✨ Features
 
-- 🎤 **Live Recording**: Record audio directly in the browser with real-time frequency visualization.
-- 📁 **File Upload**: Support for MP3, WAV, FLAC, OGG, OPUS, M4A, AAC, and more.
-- 🤖 **Gemini Integration**: Supports AI Studio (API Key) and Vertex AI (Service Account).
-- 🧠 **Thinking Support**: Adjustable "Thinking Budget" for Gemini 2.0 Thinking models.
-- 🌍 **Multilingual**: Specialized system prompt for translating Hinglish/Hindi to clean English while preserving technical entities.
-- 🎨 **Multi-Theme**: Dark, Light, and Pastel themes with high-contrast accessibility.
-- 📜 **Local History**: Recording history and audio blobs are saved securely to IndexedDB.
-- 🔐 **Privacy First**: All processing is client-side. Service Account JSONs and API keys are stored only in your browser's `localStorage`.
+- 🎤 Record audio directly in browser
+- 🤖 AI-powered transcription with Gemini
+- 🔄 Smart model rotation and degradation fallback
+- 📜 Recording history (saved to IndexedDB)
+- 🔑 User-provided API key or secret passcode unlock
 
 ## 🚀 Deploy to Vercel
 
@@ -37,11 +34,14 @@ npm run build
 ## 📂 Project Structure
 
 ```
-scribe/
+vercel-scribe/
+├── api/
+│   └── token.js        # Vercel Edge Function (Legacy/Optional)
 ├── src/
 │   ├── app.js          # Main application logic
-│   ├── batch.js        # Batch API transcription
+│   ├── gemini.js       # Gemini transcription engine
 │   ├── main.js         # Entry point
+│   ├── pill.js         # UI component for recording
 │   ├── storage.js      # IndexedDB persistence
 │   └── styles.css      # Styling
 ├── index.html          # Main HTML
@@ -59,6 +59,20 @@ scribe/
 └── vite.config.js      # Vite Configuration
 ```
 
+## How It Works
+
+1. User enters their Gemini API key or a secret passcode
+2. Keys are stored in browser localStorage
+3. When recording or uploading:
+   - Audio is sent to the Gemini API for transcription
+   - The app uses smart rotation if multiple keys are provided
+   - If a model fails, it automatically falls back to other available models
+4. Transcriptions are saved to IndexedDB for history
+
+## Security Note
+
+The API key is provided by the user in the UI. It's stored in localStorage and only sent to:
+- Google Gemini API (transcription)
 ## 🔒 Security Note
 
 Authentication credentials (API Keys or Service Account JSONs) are provided by the user and stored in `localStorage`. They are only sent directly to Google's API endpoints (`generativelanguage.googleapis.com` or `aiplatform.googleapis.com`). No backend server is involved in the transcription flow.
