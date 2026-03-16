@@ -50,8 +50,7 @@ vercel-scribe/
 │   ├── batch.js        # Batch API transcription
 │   ├── main.js         # Entry point
 │   ├── storage.js      # IndexedDB persistence
-│   ├── styles.css      # Styling
-│   └── websocket.js    # Real-time transcription
+│   └── styles.css      # Styling
 ├── index.html          # Main HTML
 ├── package.json        # Dependencies
 ├── vercel.json         # Vercel configuration
