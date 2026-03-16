@@ -1,32 +1,27 @@
-# 🎙️ Vercel Scribe - Speech-to-Text
+# 🎙️ Scribe - Speech-to-Text (Gemini & Vertex AI Edition)
 
-A pure client-side speech-to-text app using ElevenLabs Scribe V2.
+A pure client-side speech-to-text application powered by Google Gemini. Optimized for multilingual transcription (Hinglish/Hindi/English) and technical accuracy.
 
-## Features
+## ✨ Features
 
-- 🎤 Record audio directly in browser
-- ⚡ Real-time transcription (WebSocket with VAD)
-- 📦 Batch transcription (fallback)
-- 📜 Recording history (saved to IndexedDB)
-- 🔑 User-provided API key (no server secrets)
+- 🎤 **Live Recording**: Record audio directly in the browser with real-time frequency visualization.
+- 📁 **File Upload**: Support for MP3, WAV, FLAC, OGG, OPUS, M4A, AAC, and more.
+- 🤖 **Gemini Integration**: Supports AI Studio (API Key) and Vertex AI (Service Account).
+- 🧠 **Thinking Support**: Adjustable "Thinking Budget" for Gemini 2.0 Thinking models.
+- 🌍 **Multilingual**: Specialized system prompt for translating Hinglish/Hindi to clean English while preserving technical entities.
+- 🎨 **Multi-Theme**: Dark, Light, and Pastel themes with high-contrast accessibility.
+- 📜 **Local History**: Recording history and audio blobs are saved securely to IndexedDB.
+- 🔐 **Privacy First**: All processing is client-side. Service Account JSONs and API keys are stored only in your browser's `localStorage`.
 
-## Deploy to Vercel
+## 🚀 Deploy to Vercel
 
-### Option 1: GitHub (Recommended)
+This is a standard Vite project. You can deploy it to Vercel with zero configuration:
 
-1. Push this folder to a GitHub repository
-2. Go to [vercel.com](https://vercel.com)
-3. Click "Add New Project"
-4. Import your GitHub repository
-5. Click "Deploy"
+1. Push this repository to GitHub.
+2. Import the project into [Vercel](https://vercel.com).
+3. Vercel will automatically detect Vite and use `npm run build` as the build command and `dist` as the output directory.
 
-### Option 2: Drag and Drop
-
-1. Run `npm run build` locally
-2. Go to [vercel.com](https://vercel.com)
-3. Drag the `dist` folder to deploy
-
-## Local Development
+## 🛠️ Local Development
 
 ```bash
 # Install dependencies
@@ -39,12 +34,10 @@ npm run dev
 npm run build
 ```
 
-## Project Structure
+## 📂 Project Structure
 
 ```
-vercel-scribe/
-├── api/
-│   └── token.js        # Vercel Edge Function (WebSocket token)
+scribe/
 ├── src/
 │   ├── app.js          # Main application logic
 │   ├── batch.js        # Batch API transcription
@@ -55,21 +48,17 @@ vercel-scribe/
 ├── package.json        # Dependencies
 ├── vercel.json         # Vercel configuration
 └── vite.config.js      # Vite configuration
+│   ├── app.js          # UI Logic & State Management
+│   ├── gemini.js       # Transcription Engine & Vertex AI Auth
+│   ├── pill.js         # Canvas-based Audio Visualizer
+│   ├── storage.js      # IndexedDB Persistence
+│   ├── styles.css      # Multi-theme CSS
+│   └── main.js         # Entry point
+├── index.html          # Main application shell
+├── package.json        # Dependencies & Scripts
+└── vite.config.js      # Vite Configuration
 ```
 
-## How It Works
+## 🔒 Security Note
 
-1. User enters their ElevenLabs API key
-2. Key is stored in browser localStorage
-3. When recording:
-   - **Batch Mode**: Audio sent directly to ElevenLabs batch API
-   - **Real-time Mode**: Token fetched from Edge Function, then WebSocket connection made
-4. Transcriptions saved to IndexedDB for history
-
-## Security Note
-
-The API key is provided by the user in the UI. It's stored in localStorage and only sent to:
-- ElevenLabs API (batch transcription)
-- Vercel Edge Function -> ElevenLabs (token fetch)
-
-The Edge Function acts as a minimal proxy to fetch WebSocket tokens since browsers can't set custom headers on WebSocket connections.
+Authentication credentials (API Keys or Service Account JSONs) are provided by the user and stored in `localStorage`. They are only sent directly to Google's API endpoints (`generativelanguage.googleapis.com` or `aiplatform.googleapis.com`). No backend server is involved in the transcription flow.
